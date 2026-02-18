@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#FF6B35">
+    <title>SwiftTrack - Koerier App</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A2B;
+            --secondary: #004E89;
+            --success: #00C851;
+            --warning: #FFBB33;
+            --danger: #FF4444;
+            --dark: #1A1A2E;
+            --light: #F8F9FA;
+            --gray: #6C757D;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--light);
+            color: var(--dark);
+            overflow-x: hidden;
+            padding-bottom: 80px;
+        }
+
+        /* Login Screen */
+        .login-screen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .login-screen.hidden { display: none; }
+
+        .login-logo { font-size: 48px; margin-bottom: 10px; }
+        .login-title { color: white; font-size: 32px; font-weight: 800; margin-bottom: 40px; }
+
+        .login-form { width: 100%; max-width: 350px; }
+
+        .form-group { margin-bottom: 20px; }
+        .form-label { color: white; font-size: 14px; font-weight: 600; margin-bottom: 8px; display: block; }
+        .form-input {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            background: rgba(255,255,255,0.95);
+            transition: transform 0.2s;
+        }
+        .form-input:focus { outline: none; transform: scale(1.02); }
+
+        .btn-login {
+            width: 100%;
+            padding: 16px;
+            background: white;
+            color: var(--primary);
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
+        .btn-login:disabled { opacity: 0.7; cursor: not-allowed; }
+
+        .error-message {
+            color: #FFEBEE;
+            background: rgba(255,0,0,0.2);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+        .error-message.show { display: block; }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            backdrop-filter: blur(5px);
+        }
+        .loading-overlay.show { display: flex; }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--light);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .app-container { display: none; }
+        .app-container.show { display: block; }
+
+        .app-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(255, 107, 53, 0.3);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo { font-size: 24px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+        .user-info { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            padding: 20px;
+            margin-top: -10px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 16px 8px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            transition: transform 0.3s;
+        }
+        .stat-card:active { transform: scale(0.95); }
+
+        .stat-number { font-size: 28px; font-weight: 800; color: var(--primary); line-height: 1; }
+        .stat-label { font-size: 12px; color: var(--gray); margin-top: 4px; font-weight: 600; }
+
+        .filter-tabs {
+            display: flex;
+            padding: 0 20px;
+            gap: 8px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            margin-bottom: 16px;
+        }
+        .filter-tabs::-webkit-scrollbar { display: none; }
+
+        .tab {
+            padding: 10px 20px;
+            border-radius: 25px;
+            border: 2px solid transparent;
+            background: white;
+            font-weight: 600;
+            font-size: 14px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        .orders-section { padding: 0 20px; }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .refresh-btn {
+            background: none;
+            border: none;
+            color: var(--primary);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        .refresh-btn.spinning { animation: spin 1s linear infinite; }
+
+        .order-card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border-left: 4px solid var(--primary);
+            transition: all 0.3s;
+        }
+        .order-card.delivered { border-left-color: var(--success); opacity: 0.8; }
+        .order-card.in-transit { border-left-color: var(--warning); }
+        .order-card.cancelled { border-left-color: var(--danger); opacity: 0.6; }
+
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 12px;
+        }
+
+        .order-id { font-weight: 700; font-size: 16px; color: var(--dark); }
+        .order-time { font-size: 12px; color: var(--gray); margin-top: 2px; }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .status-badge.pending { background: #FFF3E0; color: #E65100; }
+        .status-badge.in-transit { background: #FFF8E1; color: #F57F17; }
+        .status-badge.delivered { background: #E8F5E9; color: #2E7D32; }
+        .status-badge.cancelled { background: #FFEBEE; color: #C62828; }
+
+        .address-row { display: flex; align-items: start; gap: 12px; margin-bottom: 8px; }
+        .address-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--light);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+        .address-text { font-size: 14px; line-height: 1.4; color: var(--dark); }
+        .address-label {
+            font-size: 11px;
+            color: var(--gray);
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+
+        .order-meta {
+            display: flex;
+            gap: 16px;
+            margin: 12px 0;
+            padding: 12px;
+            background: var(--light);
+            border-radius: 12px;
+        }
+        .meta-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--gray); }
+
+        .order-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+        .btn {
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.3s;
+        }
+        .btn:active { transform: scale(0.95); }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-secondary { background: white; color: var(--dark); border: 2px solid #E0E0E0; }
+        .btn-success { background: var(--success); color: white; }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 12px 20px 20px;
+            display: flex;
+            justify-content: space-around;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: var(--gray);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s;
+            padding: 8px 16px;
+            border-radius: 12px;
+        }
+        .nav-item.active { color: var(--primary); }
+        .nav-item.active .nav-icon { background: var(--primary); color: white; }
+
+        .nav-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            background: var(--light);
+            transition: all 0.3s;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 200;
+            display: none;
+            align-items: flex-end;
+            backdrop-filter: blur(4px);
+        }
+        .modal-overlay.active { display: flex; }
+
+        .modal-content {
+            background: white;
+            width: 100%;
+            border-radius: 24px 24px 0 0;
+            padding: 24px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-title { font-size: 20px; font-weight: 700; }
+        .modal-close { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--light); font-size: 20px; cursor: pointer; }
+
+        .nav-options { display: grid; gap: 12px; }
+        .nav-option { display: flex; align-items: center; gap: 16px; padding: 16px; border-radius: 16px; border: 2px solid #E0E0E0; background: white; cursor: pointer; transition: all 0.3s; text-decoration: none; color: var(--dark); }
+        .nav-option:hover { border-color: var(--primary); background: #FFF5F2; }
+        .nav-option-icon { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+        .nav-option-icon.google { background: #4285F4; color: white; }
+        .nav-option-icon.apple { background: #000; color: white; }
+        .nav-option-icon.waze { background: #33CCFF; color: white; }
+        .nav-option-text { flex: 1; }
+        .nav-option-title { font-weight: 700; font-size: 16px; }
+        .nav-option-desc { font-size: 13px; color: var(--gray); }
+
+        .toast {
+            position: fixed;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: var(--dark);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            z-index: 300;
+            opacity: 0;
+            transition: all 0.3s;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--gray); }
+        .empty-icon { font-size: 64px; margin-bottom: 16px; opacity: 0.3; }
+        .empty-title { font-size: 18px; font-weight: 700; color: var(--dark); margin-bottom: 8px; }
+
+        @media (min-width: 768px) {
+            .app-container { max-width: 480px; margin: 0 auto; box-shadow: 0 0 40px rgba(0,0,0,0.1); min-height: 100vh; background: var(--light); }
+            .bottom-nav { max-width: 480px; left: 50%; transform: translateX(-50%); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div class="login-screen" id="login-screen">
+        <div class="login-logo">⚡</div>
+        <div class="login-title">SwiftTrack</div>
+        <div class="login-form">
+            <div class="error-message" id="login-error"></div>
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-input" id="login-email" placeholder="email@swifttrack.com" value="ahmet@swifttrack.com">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Şifre</label>
+                <input type="password" class="form-input" id="login-password" placeholder="••••••••" value="password123">
+            </div>
+            <button class="btn-login" id="login-btn" onclick="login()">Giriş Yap</button>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Main App -->
+    <div class="app-container" id="app">
+        <header class="app-header">
+            <div class="header-content">
+                <div class="logo">
+                    <span>⚡</span>
+                    <span>SwiftTrack</span>
+                </div>
+                <div class="user-info">
+                    <span id="user-name">Koerier</span>
+                    <button class="logout-btn" onclick="logout()">Çıkış</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-number" id="stat-total">-</div>
+                <div class="stat-label">Vandaag</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-active">-</div>
+                <div class="stat-label">Actief</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-completed">-</div>
+                <div class="stat-label">Afgerond</div>
+            </div>
+        </div>
+
+        <div class="filter-tabs">
+            <button class="tab active" onclick="filterOrders('all')">Alle</button>
+            <button class="tab" onclick="filterOrders('pending')">Nieuw</button>
+            <button class="tab" onclick="filterOrders('in-transit')">Onderweg</button>
+            <button class="tab" onclick="filterOrders('delivered')">Afgeleverd</button>
+        </div>
+
+        <section class="orders-section">
+            <div class="section-title">
+                <span>Mijn Orders</span>
+                <button class="refresh-btn" id="refresh-btn" onclick="loadOrders()">🔄</button>
+            </div>
+            <div id="orders-list">
+                <div class="empty-state">
+                    <div class="empty-icon">📦</div>
+                    <div class="empty-title">Yükleniyor...</div>
+                </div>
+            </div>
+        </section>
+
+        <nav class="bottom-nav">
+            <a href="#" class="nav-item active" onclick="showPage('orders')">
+                <div class="nav-icon">📦</div>
+                <span>Orders</span>
+            </a>
+            <a href="#" class="nav-item" onclick="showPage('map')">
+                <div class="nav-icon">🗺️</div>
+                <span>Kaart</span>
+            </a>
+            <a href="#" class="nav-item" onclick="showPage('profile')">
+                <div class="nav-icon">👤</div>
+                <span>Profiel</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- Navigation Modal -->
+    <div class="modal-overlay" id="nav-modal" onclick="closeNavModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 class="modal-title">Kies navigatie</h3>
+                <button class="modal-close" onclick="closeNavModal()">✕</button>
+            </div>
+            <div class="nav-options">
+                <a href="#" class="nav-option" onclick="openNavigation('google')">
+                    <div class="nav-option-icon google">🗺️</div>
+                    <div class="nav-option-text">
+                        <div class="nav-option-title">Google Maps</div>
+                        <div class="nav-option-desc">Route met verkeersinformatie</div>
+                    </div>
+                    <span>→</span>
+                </a>
+                <a href="#" class="nav-option" onclick="openNavigation('apple')">
+                    <div class="nav-option-icon apple">🍎</div>
+                    <div class="nav-option-text">
+                        <div class="nav-option-title">Apple Maps</div>
+                        <div class="nav-option-desc">Optimale route voor iOS</div>
+                    </div>
+                    <span>→</span>
+                </a>
+                <a href="#" class="nav-option" onclick="openNavigation('waze')">
+                    <div class="nav-option-icon waze">🚗</div>
+                    <div class="nav-option-text">
+                        <div class="nav-option-title">Waze</div>
+                        <div class="nav-option-desc">Community-based verkeersinfo</div>
+                    </div>
+                    <span>→</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // 🎯 HOSTINGER VPS KONFİGÜRASYONU
+        // VPS IP adresinize göre ayarlayın
+        const API_BASE_URL = 'http://153.92.221.140/api';
+
+        let currentUser = null;
+        let authToken = localStorage.getItem('token');
+        let orders = [];
+        let currentFilter = 'all';
+        let currentNavOrder = null;
+
+        // Check if already logged in
+        if (authToken) {
+            verifyToken();
+        }
+
+        async function verifyToken() {
+            showLoading(true);
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    currentUser = data.data;
+                    showApp();
+                    loadOrders();
+                    loadStats();
+                } else {
+                    localStorage.removeItem('token');
+                    authToken = null;
+                }
+            } catch (error) {
+                console.error('Token verification failed:', error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function login() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const errorDiv = document.getElementById('login-error');
+            const loginBtn = document.getElementById('login-btn');
+
+            if (!email || !password) {
+                errorDiv.textContent = 'Lütfen email ve şifre girin';
+                errorDiv.classList.add('show');
+                return;
+            }
+
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Giriş yapılıyor...';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    authToken = data.data.token;
+                    currentUser = data.data.courier;
+                    localStorage.setItem('token', authToken);
+                    errorDiv.classList.remove('show');
+                    showApp();
+                    loadOrders();
+                    loadStats();
+                    showToast(`Hoş geldin ${currentUser.name}!`);
+                } else {
+                    errorDiv.textContent = data.message || 'Giriş başarısız';
+                    errorDiv.classList.add('show');
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Bağlantı hatası. Lütfen tekrar deneyin.';
+                errorDiv.classList.add('show');
+                console.error('Login error:', error);
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Giriş Yap';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            authToken = null;
+            currentUser = null;
+            document.getElementById('login-screen').classList.remove('hidden');
+            document.getElementById('app').classList.remove('show');
+            showToast('Çıkış yapıldı');
+        }
+
+        function showApp() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('app').classList.add('show');
+            document.getElementById('user-name').textContent = currentUser?.name || 'Koerier';
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').classList.toggle('show', show);
+        }
+
+        async function loadOrders() {
+            if (!authToken) return;
+
+            const refreshBtn = document.getElementById('refresh-btn');
+            refreshBtn.classList.add('spinning');
+
+            try {
+                const url = new URL(`${API_BASE_URL}/orders/my-orders`);
+                if (currentFilter !== 'all') {
+                    url.searchParams.append('status', currentFilter);
+                }
+                url.searchParams.append('date', 'today');
+
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (!response.ok) throw new Error('Failed to load orders');
+
+                const data = await response.json();
+                orders = data.data || [];
+                renderOrders();
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                showToast('❌ Orders yüklenemedi');
+            } finally {
+                refreshBtn.classList.remove('spinning');
+            }
+        }
+
+        async function loadStats() {
+            if (!authToken) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/stats/my-stats`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (!response.ok) throw new Error('Failed to load stats');
+
+                const data = await response.json();
+                const stats = data.data;
+
+                animateNumber('stat-total', stats.total);
+                animateNumber('stat-active', stats.active);
+                animateNumber('stat-completed', stats.completed);
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        function renderOrders() {
+            const container = document.getElementById('orders-list');
+
+            if (orders.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📭</div>
+                        <div class="empty-title">Geen orders gevonden</div>
+                        <p>Er zijn momenteel geen orders in deze categorie.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = orders.map(order => `
+                <div class="order-card ${order.status}" data-id="${order._id}">
+                    <div class="order-header">
+                        <div>
+                            <div class="order-id">${order.orderNumber}</div>
+                            <div class="order-time">${order.timeWindow?.start || ''} - ${order.timeWindow?.end || ''}</div>
+                        </div>
+                        <span class="status-badge ${order.status}">${getStatusText(order.status)}</span>
+                    </div>
+
+                    <div class="address-row">
+                        <div class="address-icon">📍</div>
+                        <div>
+                            <div class="address-label">Ophalen</div>
+                            <div class="address-text">${order.pickup?.address || ''}, ${order.pickup?.city || ''}</div>
+                        </div>
+                    </div>
+
+                    <div class="address-row">
+                        <div class="address-icon">🏠</div>
+                        <div>
+                            <div class="address-label">Afleveren</div>
+                            <div class="address-text">${order.delivery?.address || ''}, ${order.delivery?.city || ''}</div>
+                        </div>
+                    </div>
+
+                    <div class="order-meta">
+                        <div class="meta-item">
+                            <span>👤</span>
+                            <span>${order.delivery?.contactName || ''}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span>📏</span>
+                            <span>${order.estimatedDistance || '-'} km</span>
+                        </div>
+                        <div class="meta-item">
+                            <span>⚖️</span>
+                            <span>${order.package?.weight || '-'} kg</span>
+                        </div>
+                    </div>
+
+                    ${order.delivery?.notes ? `<div style="margin-bottom: 12px; padding: 10px; background: #FFF8E1; border-radius: 8px; font-size: 13px; color: #F57F17;"><strong>📝 Note:</strong> ${order.delivery.notes}</div>` : ''}
+
+                    <div class="order-actions">
+                        ${getActionButtons(order)}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getStatusText(status) {
+            const map = {
+                'pending': 'Nieuw',
+                'in-transit': 'Onderweg',
+                'delivered': 'Afgeleverd',
+                'cancelled': 'Geannuleerd'
+            };
+            return map[status] || status;
+        }
+
+        function getActionButtons(order) {
+            if (order.status === 'delivered' || order.status === 'cancelled') {
+                return `<button class="btn btn-secondary" style="grid-column: 1 / -1;" onclick="viewDetails('${order._id}')">📋 Details</button>`;
+            }
+
+            if (order.status === 'pending') {
+                return `
+                    <button class="btn btn-primary" onclick="updateStatus('${order._id}', 'in-transit')">🚀 Start</button>
+                    <button class="btn btn-secondary" onclick="openNavModal('${order._id}')">🧭 Nav</button>
+                `;
+            }
+
+            if (order.status === 'in-transit') {
+                return `
+                    <button class="btn btn-success" onclick="updateStatus('${order._id}', 'delivered')">✅ Afgeleverd</button>
+                    <button class="btn btn-secondary" onclick="openNavModal('${order._id}')">🧭 Nav</button>
+                `;
+            }
+        }
+
+        async function updateStatus(orderId, newStatus) {
+            showLoading(true);
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
+
+                if (!response.ok) throw new Error('Update failed');
+
+                const data = await response.json();
+
+                // Update local data
+                const orderIndex = orders.findIndex(o => o._id === orderId);
+                if (orderIndex !== -1) {
+                    orders[orderIndex] = data.data;
+                }
+
+                renderOrders();
+                loadStats();
+
+                const messages = {
+                    'in-transit': '🚀 Rit gestart!',
+                    'delivered': '✅ Afgelevering bevestigd!',
+                    'cancelled': '❌ Order geannuleerd'
+                };
+                showToast(messages[newStatus] || 'Status bijgewerkt');
+
+            } catch (error) {
+                console.error('Error updating status:', error);
+                showToast('❌ Status update mislukt');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function filterOrders(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            loadOrders();
+        }
+
+        function openNavModal(orderId) {
+            currentNavOrder = orders.find(o => o._id === orderId);
+            document.getElementById('nav-modal').classList.add('active');
+        }
+
+        function closeNavModal(event) {
+            if (!event || event.target.id === 'nav-modal') {
+                document.getElementById('nav-modal').classList.remove('active');
+            }
+        }
+
+        function openNavigation(app) {
+            if (!currentNavOrder) return;
+
+            const address = encodeURIComponent(`${currentNavOrder.delivery.address}, ${currentNavOrder.delivery.city}`);
+            let url;
+
+            switch(app) {
+                case 'google':
+                    url = `https://www.google.com/maps/dir/?api=1&destination=${address}`;
+                    break;
+                case 'apple':
+                    url = `http://maps.apple.com/?daddr=${address}`;
+                    break;
+                case 'waze':
+                    url = `https://waze.com/ul?q=${address}`;
+                    break;
+            }
+
+            window.open(url, '_blank');
+            closeNavModal();
+            showToast(`🧭 Navigatie gestart in ${app}`);
+        }
+
+        function viewDetails(orderId) {
+            const order = orders.find(o => o._id === orderId);
+            if (order) {
+                alert(`Order Details:\n\nNummer: ${order.orderNumber}\nStatus: ${getStatusText(order.status)}\nKlant: ${order.delivery.contactName}\nTelefoon: ${order.delivery.contactPhone}`);
+            }
+        }
+
+        function animateNumber(id, target) {
+            const element = document.getElementById(id);
+            if (!element) return;
+
+            const current = parseInt(element.textContent) || 0;
+            if (current === target) return;
+
+            let step = 0;
+            const steps = 10;
+            const increment = (target - current) / steps;
+
+            const timer = setInterval(() => {
+                step++;
+                element.textContent = Math.round(current + (increment * step));
+                if (step >= steps) {
+                    element.textContent = target;
+                    clearInterval(timer);
+                }
+            }, 30);
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function showPage(page) {
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            if (page === 'orders') {
+                loadOrders();
+            } else {
+                showToast(`🚧 ${page} sayfası yapım aşamasında`);
+            }
+        }
+
+        // Real-time updates için polling (Socket.io alternatifi)
+        setInterval(() => {
+            if (authToken && document.getElementById('app').classList.contains('show')) {
+                loadStats();
+            }
+        }, 30000); // Her 30 saniyede bir stats güncelle
+    </script>
+</body>
+</html>
